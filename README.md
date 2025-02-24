@@ -138,12 +138,12 @@ dmct_celldmc <- dmct.l_celldmc$dmct
 dmct_count_celldmc <- dmct.l_celldmc$dmct_count
 ```
 **dmct.l**: DMCT list, each list consists of 2 matrices, **dmct** and **dmct_count**.
-**dmct** shows the indicators for each cell type:
-* 0 means this CpG is not differentially methylated in that cell type.
-*	1 means this CpG is hypermethylated in that cell type.
-*	-1 means this CpG is hypomethylated in that cell type.
-*	`DMC` column means the result across all cell types, if one CpG is differentially methylated in at least one cell type, then its value will be 1, otherwise, 0.
-The **dmct_count** matrix shows the number of differentially methylated CpGs in each cell type, `dmct_total` is the sum of `dmct_hyper` and `dmct_hypo`.
+* **dmct** shows the indicators for each cell type:
+  * 0 means this CpG is not differentially methylated in that cell type.
+  *	1 means this CpG is hypermethylated in that cell type.
+  *	-1 means this CpG is hypomethylated in that cell type.
+  *	`DMC` column means the result across all cell types, if one CpG is differentially methylated in at least one cell type, then its value will be 1, otherwise, 0.
+* The **dmct_count** matrix shows the number of differentially methylated CpGs in each cell type, `dmct_total` is the sum of `dmct_hyper` and `dmct_hypo`.
 
 ```r
 all(dmct_celldmc == celldmc_output$dmct) # This should be TRUE under FDR 0.05.
