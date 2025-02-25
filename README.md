@@ -67,7 +67,7 @@ celldmc_coe <- celldmc_output$coe
 ```
 
 ### Run TCA without refitting cell type porportions
-Run `TCA`
+Run `TCA`.
 ```r
 sample_450k_phe_tca <- t(sample_450k_phe)
 sample_450k_phe_tca[, 1] <- factor(sample_450k_phe_tca[, 1])
