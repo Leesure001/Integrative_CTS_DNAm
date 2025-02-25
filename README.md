@@ -1,11 +1,14 @@
-# Integrated Cell-Type-Specific Differential Methylation
+# Integrative Cell-Type-Specific Differential Methylation
 
-This pipeline is for integrated cell-type-specific differential methylation analysis. It starts from estimating cell type proportions by using [HEpiDISH](https://github.com/sjczheng/EpiDISH), then runs five cell-type-specific differential methylation methods, [CellDMC](https://github.com/sjczheng/EpiDISH), [TCA](https://github.com/cozygene/TCA/tree/master), [TOAST](https://github.com/ziyili20/TOAST/tree/master), [CeDAR](https://github.com/ziyili20/TOAST/blob/master/R/cedar.R), [HIRE](https://github.com/XiangyuLuo/HIREewas), extracts results from five methods' output, ends with integrated analysis based on averaging p values and minimizing p values.
+This pipeline demonstrates how to perform integrative cell-type-specific differential methylation analysis. The main steps are:
+* (a) cell type proportions estimation.
+* (b) application of cell-type-specific differential methylation methods. In this pipeline, we include [CellDMC](https://github.com/sjczheng/EpiDISH), [TCA](https://github.com/cozygene/TCA/tree/master), [TOAST](https://github.com/ziyili20/TOAST/tree/master), [CeDAR](https://github.com/ziyili20/TOAST/blob/master/R/cedar.R), [HIRE](https://github.com/XiangyuLuo/HIREewas).
+* (c) extracting results from the output of these methods to be combined based on average p-value or min p-value approach described in our paper.
 
 ## Install and load required packages
 Load required functions.
 ```r
-source("Integrated_CTS_DNAm.R")
+source("Integrative_CTS_DNAm.R")
 ```
 
 Install `Cran` packages.
@@ -31,23 +34,17 @@ check_installed(pkgs = c(bioc_packages, cran_packages, "HIREewas"))
 lapply(c(bioc_packages, cran_packages, "HIREewas"), require, character.only = TRUE)
 ```
 
-## Use `HEpiDISH` to estimate cell type proportions
+## Estimating cell type proportions
+Here we demonstrate how to estimate the cell type proportions using [HEpiDISH](https://github.com/sjczheng/EpiDISH). Users can also use other methods to estimate the cell type proportions.
 ```r
 load('sample_450k.RData')
 ```
 This sample data was simulated based on `450K` array benchmarking dataset. It has 10,000 CpGs for 100 samples.
 
-If you don't know the true cell type proportions.
 ```r
 library(EpiDISH)
 frac_epidish <- hepidish(beta.m = sample_450k, ref1.m = centEpiFibIC.m, ref2.m = centBloodSub.m[,c(1, 3, 5)], h.CT.idx = 3, method = 'RPC')
 frac_epidish <- frac_epidish[, c("Epi", "Fib", "CD4T", "Mono", "B")]
-```
-
-If you know the true cell type proportions, check the `spearman` correlations between true cell type proportions and estimated results from `HEpiDISH`.
-```r
-load('sample_450k_props_true.RData')
-check_frac_cor(frac_epidish, sample_450k_props_true, method = "spearman")
 ```
 
 ## Load phenotype of interest matrix
@@ -56,7 +53,7 @@ load('sample_450k_phe.RData')
 ```
 This simulated phenotype matrix is for 100 samples, with 50 cases and 50 controls.
 
-## Run cell type specific differential meehylation analysis methods
+## Run cell type specific differential methylation analysis methods
 ### Run CellDMC
 Run `CellDMC`.
 ```r
@@ -74,7 +71,7 @@ Run `TCA`
 ```r
 sample_450k_phe_tca <- t(sample_450k_phe)
 sample_450k_phe_tca[, 1] <- factor(sample_450k_phe_tca[, 1])
-tca_output<- tca(X = sample_450k, W = frac_epidish, C1 = sample_450k_phe_tca)
+tca_output <- tca(X = sample_450k, W = frac_epidish, C1 = sample_450k_phe_tca)
 ```
 
 Check `TCA` output.
@@ -111,16 +108,16 @@ Check `CeDAR` output.
 head(cedar_output$tree_res$full$pp)
 ```
 
-### Run HIRE V2 (initialized using inputting cell type proportions)
-Run `HIRE V2`.
+### Run HIRE (initialized using inputting cell type proportions)
+Run `HIRE`.
 ```r
-hire_v2_output <- HIRE_V2(sample_450k, sample_450k_phe, num_celltype = ncol(frac_epidish), props_true = t(frac_epidish))
+hire_output <- HIRE_V2(sample_450k, sample_450k_phe, num_celltype = ncol(frac_epidish), props_true = t(frac_epidish))
 ```
 
-Check `HIRE V2` output.
+Check `HIRE` output.
 ```r
-head(hire_v2_output$beta_t)
-head(hire_v2_output$pvalues)
+head(hire_output$beta_t)
+head(hire_output$pvalues)
 ```
 
 ## Extract results from each method's output
@@ -188,117 +185,117 @@ dmct_count_cedar <- dmct.l_cedar$dmct_count
 cedar_result <- extract_cpgs(dmct.l_cedar)
 ```
 
-### HIRE V2
+### HIRE
 ```r
-hire_v2_coe <- generate_hire_v2_coe(hire_v2_output)
-dmct.l_hire_v2 <- get_dmct(coe = hire_v2_coe, adjPThresh = 0.05)
-dmct_hire_v2 <- dmct.l_hire_v2$dmct
-dmct_count_hire_v2 <- dmct.l_hire_v2$dmct_count
-hire_v2_result <- extract_cpgs(dmct.l_hire_v2)
+hire_coe <- generate_hire_v2_coe(hire_output)
+dmct.l_hire <- get_dmct(coe = hire_coe, adjPThresh = 0.05)
+dmct_hire <- dmct.l_hire$dmct
+dmct_count_hire <- dmct.l_hire$dmct_count
+hire_result <- extract_cpgs(dmct.l_hire)
 ```
 
-## Integrated analysis with averaging p values - V1
+## Integrative analysis with average p-value method
 ### Combine 5 methods: CellDMC, TCA, TOAST, CeDAR, HIRE
 ```r
-combine_v1_5_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 5, adjPMethod = "fdr")
+ave_pv_5_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 5, adjPMethod = "fdr")
 ```
 For the **coe** lists of combined methods, the column `Estimate` is copied the coefficients from `CellDMC` model, it wouldn’t be used in the analysis.
 
 ```r
-dmct.l_combine_v1_5 <- get_dmct(coe = combine_v1_5_coe, adjPThresh = 0.05)
-dmct_combine_v1_5 <- dmct.l_combine_v1_5$dmct
-dmct_count_combine_v1_5 <- dmct.l_combine_v1_5$dmct_count
-combine_v1_5 <- extract_cpgs(dmct.l_combine_v1_5)
+dmct.l_ave_pv_5 <- get_dmct(coe = ave_pv_5_coe, adjPThresh = 0.05)
+dmct_ave_pv_5 <- dmct.l_ave_pv_5$dmct
+dmct_count_ave_pv_5 <- dmct.l_ave_pv_5$dmct_count
+ave_pv_5 <- extract_cpgs(dmct.l_ave_pv_5)
 ```
 
 ### Combine 4 methods: CellDMC, TCA, TOAST, CeDAR
 ```r
-combine_v1_4_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 4, adjPMethod = "fdr")
-dmct.l_combine_v1_4 <- get_dmct(coe = combine_v1_4_coe, adjPThresh = 0.05)
-dmct_combine_v1_4 <- dmct.l_combine_v1_4$dmct
-dmct_count_combine_v1_4 <- dmct.l_combine_v1_4$dmct_count
-combine_v1_4 <- extract_cpgs(dmct.l_combine_v1_4)
+ave_pv_4_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 4, adjPMethod = "fdr")
+dmct.l_ave_pv_4 <- get_dmct(coe = ave_pv_4_coe, adjPThresh = 0.05)
+dmct_ave_pv_4 <- dmct.l_ave_pv_4$dmct
+dmct_count_ave_pv_4 <- dmct.l_ave_pv_4$dmct_count
+ave_pv_4 <- extract_cpgs(dmct.l_ave_pv_4)
 ```
 
 ### Combine 3 methods: CellDMC, TCA, TOAST
 ```r
-combine_v1_31_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 31, adjPMethod = "fdr")
-dmct.l_combine_v1_31 <- get_dmct(coe = combine_v1_31_coe, adjPThresh = 0.05)
-dmct_combine_v1_31 <- dmct.l_combine_v1_31$dmct
-dmct_count_combine_v1_31 <- dmct.l_combine_v1_31$dmct_count
-combine_v1_31 <- extract_cpgs(dmct.l_combine_v1_31)
+ave_pv_31_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 31, adjPMethod = "fdr")
+dmct.l_ave_pv_31 <- get_dmct(coe = ave_pv_31_coe, adjPThresh = 0.05)
+dmct_ave_pv_31 <- dmct.l_ave_pv_31$dmct
+dmct_count_ave_pv_31 <- dmct.l_ave_pv_31$dmct_count
+ave_pv_31 <- extract_cpgs(dmct.l_ave_pv_31)
 ```
 
 ### Combine 3 methods: CellDMC, TCA, CeDAR
 ```r
-combine_v1_32_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 32, adjPMethod = "fdr")
-dmct.l_combine_v1_32 <- get_dmct(coe = combine_v1_32_coe, adjPThresh = 0.05)
-dmct_combine_v1_32 <- dmct.l_combine_v1_32$dmct
-dmct_count_combine_v1_32 <- dmct.l_combine_v1_32$dmct_count
-combine_v1_32 <- extract_cpgs(dmct.l_combine_v1_32)
+ave_pv_32_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 32, adjPMethod = "fdr")
+dmct.l_ave_pv_32 <- get_dmct(coe = ave_pv_32_coe, adjPThresh = 0.05)
+dmct_ave_pv_32 <- dmct.l_ave_pv_32$dmct
+dmct_count_ave_pv_32 <- dmct.l_ave_pv_32$dmct_count
+ave_pv_32 <- extract_cpgs(dmct.l_ave_pv_32)
 ```
 
 ### Combine 2 methods: CellDMC, TCA
 ```r
-combine_v1_2_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 2, adjPMethod = "fdr")
-dmct.l_combine_v1_2 <- get_dmct(coe = combine_v1_2_coe, adjPThresh = 0.05)
-dmct_combine_v1_2 <- dmct.l_combine_v1_2$dmct
-dmct_count_combine_v1_2 <- dmct.l_combine_v1_2$dmct_count
-combine_v1_2 <- extract_cpgs(dmct.l_combine_v1_2)
+ave_pv_2_coe <- generate_overall_coe_v1(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 2, adjPMethod = "fdr")
+dmct.l_ave_pv_2 <- get_dmct(coe = ave_pv_2_coe, adjPThresh = 0.05)
+dmct_ave_pv_2 <- dmct.l_ave_pv_2$dmct
+dmct_count_ave_pv_2 <- dmct.l_ave_pv_2$dmct_count
+ave_pv_2 <- extract_cpgs(dmct.l_ave_pv_2)
 ```
 
-## Integrated analysis with minimizing p values - V2
+## Integrative analysis with minimum p-value method
 ### Combine 5 methods: CellDMC, TCA, TOAST, CeDAR, HIRE
 ```r
-combine_v2_5_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 5, adjPMethod = "fdr")
-dmct.l_combine_v2_5 <- get_dmct(coe = combine_v2_5_coe, adjPThresh = 0.05)
-dmct_combine_v2_5 <- dmct.l_combine_v2_5$dmct
-dmct_count_combine_v2_5 <- dmct.l_combine_v2_5$dmct_count
-combine_v2_5 <- extract_cpgs(dmct.l_combine_v2_5)
+min_pv_5_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 5, adjPMethod = "fdr")
+dmct.l_min_pv_5 <- get_dmct(coe = min_pv_5_coe, adjPThresh = 0.05)
+dmct_min_pv_5 <- dmct.l_min_pv_5$dmct
+dmct_count_min_pv_5 <- dmct.l_min_pv_5$dmct_count
+min_pv_5 <- extract_cpgs(dmct.l_min_pv_5)
 ```
 
 ### Combine 4 methods: CellDMC, TCA, TOAST, CeDAR
 ```r
-combine_v2_4_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 4, adjPMethod = "fdr")
-dmct.l_combine_v2_4 <- get_dmct(coe = combine_v2_4_coe, adjPThresh = 0.05)
-dmct_combine_v2_4 <- dmct.l_combine_v2_4$dmct
-dmct_count_combine_v2_4 <- dmct.l_combine_v2_4$dmct_count
-combine_v2_4 <- extract_cpgs(dmct.l_combine_v2_4)
+min_pv_4_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 4, adjPMethod = "fdr")
+dmct.l_min_pv_4 <- get_dmct(coe = min_pv_4_coe, adjPThresh = 0.05)
+dmct_min_pv_4 <- dmct.l_min_pv_4$dmct
+dmct_count_min_pv_4 <- dmct.l_min_pv_4$dmct_count
+min_pv_4 <- extract_cpgs(dmct.l_min_pv_4)
 ```
 
 ### Combine 3 methods: CellDMC, TCA, TOAST
 ```r
-combine_v2_31_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 31, adjPMethod = "fdr")
-dmct.l_combine_v2_31 <- get_dmct(coe = combine_v2_31_coe, adjPThresh = 0.05)
-dmct_combine_v2_31 <- dmct.l_combine_v2_31$dmct
-dmct_count_combine_v2_31 <- dmct.l_combine_v2_31$dmct_count
-combine_v2_31 <- extract_cpgs(dmct.l_combine_v2_31)
+min_pv_31_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 31, adjPMethod = "fdr")
+dmct.l_min_pv_31 <- get_dmct(coe = min_pv_31_coe, adjPThresh = 0.05)
+dmct_min_pv_31 <- dmct.l_min_pv_31$dmct
+dmct_count_min_pv_31 <- dmct.l_min_pv_31$dmct_count
+min_pv_31 <- extract_cpgs(dmct.l_min_pv_31)
 ```
 
 ### Combine 3 methods: CellDMC, TCA, CeDAR
 ```r
-combine_v2_32_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 32, adjPMethod = "fdr")
-dmct.l_combine_v2_32 <- get_dmct(coe = combine_v2_32_coe, adjPThresh = 0.05)
-dmct_combine_v2_32 <- dmct.l_combine_v2_32$dmct
-dmct_count_combine_v2_32 <- dmct.l_combine_v2_32$dmct_count
-combine_v2_32 <- extract_cpgs(dmct.l_combine_v2_32)
+min_pv_32_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 32, adjPMethod = "fdr")
+dmct.l_min_pv_32 <- get_dmct(coe = min_pv_32_coe, adjPThresh = 0.05)
+dmct_min_pv_32 <- dmct.l_min_pv_32$dmct
+dmct_count_min_pv_32 <- dmct.l_min_pv_32$dmct_count
+min_pv_32 <- extract_cpgs(dmct.l_min_pv_32)
 ```
 
 ### Combine 2 methods: CellDMC, TCA
 ```r
-combine_v2_2_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_v2_coe, select = 2, adjPMethod = "fdr")
-dmct.l_combine_v2_2 <- get_dmct(coe = combine_v2_2_coe, adjPThresh = 0.05)
-dmct_combine_v2_2 <- dmct.l_combine_v2_2$dmct
-dmct_count_combine_v2_2 <- dmct.l_combine_v2_2$dmct_count
-combine_v2_2 <- extract_cpgs(dmct.l_combine_v2_2)
+min_pv_2_coe <- generate_overall_coe_v2(celldmc_coe, tca_coe, toast_coe, cedar_coe, hire_coe, select = 2, adjPMethod = "fdr")
+dmct.l_min_pv_2 <- get_dmct(coe = min_pv_2_coe, adjPThresh = 0.05)
+dmct_min_pv_2 <- dmct.l_min_pv_2$dmct
+dmct_count_min_pv_2 <- dmct.l_min_pv_2$dmct_count
+min_pv_2 <- extract_cpgs(dmct.l_min_pv_2)
 ```
 
-## Generate VennDiagram
+## Generate VennDiagram to compare the results
 ```r
 library(ggVennDiagram)
 library(ggplot2)
 
-my_list <- list(CellDMC = celldmc_result$epi$epi_all, TCA = tca_result$epi$epi_all, HIRE = hire_v2_result$epi$epi_all, TOAST = toast_result$epi$epi_all, CeDAR = cedar_result$epi$epi_all)
+my_list <- list(CellDMC = celldmc_result$epi$epi_all, TCA = tca_result$epi$epi_all, HIRE = hire_result$epi$epi_all, TOAST = toast_result$epi$epi_all, CeDAR = cedar_result$epi$epi_all)
 ggvenn_plot1 <- ggVennDiagram(
   my_list,
   label = "count"
@@ -307,7 +304,7 @@ scale_fill_gradient(low = "white", high = "dodgerblue") +
 theme(legend.position = "none", plot.title = element_text(hjust = 0.5, size = 14, face = "bold")) +
 ggtitle("Epi")
 
-my_list <- list(CellDMC = celldmc_result$fib$fib_all, TCA = tca_result$fib$fib_all, HIRE = hire_v2_result$fib$fib_all, TOAST = toast_result$fib$fib_all, CeDAR = cedar_result$fib$fib_all)
+my_list <- list(CellDMC = celldmc_result$fib$fib_all, TCA = tca_result$fib$fib_all, HIRE = hire_result$fib$fib_all, TOAST = toast_result$fib$fib_all, CeDAR = cedar_result$fib$fib_all)
 ggvenn_plot2 <- ggVennDiagram(
   my_list,
   label = "count"
@@ -316,7 +313,7 @@ scale_fill_gradient(low = "white", high = "dodgerblue") +
 theme(legend.position = "none", plot.title = element_text(hjust = 0.5, size = 14, face = "bold")) +
 ggtitle("Fib")
 
-my_list <- list(CellDMC = celldmc_result$cd4t$cd4t_all, TCA = tca_result$cd4t$cd4t_all, HIRE = hire_v2_result$cd4t$cd4t_all, TOAST = toast_result$cd4t$cd4t_all, CeDAR = cedar_result$cd4t$cd4t_all)
+my_list <- list(CellDMC = celldmc_result$cd4t$cd4t_all, TCA = tca_result$cd4t$cd4t_all, HIRE = hire_result$cd4t$cd4t_all, TOAST = toast_result$cd4t$cd4t_all, CeDAR = cedar_result$cd4t$cd4t_all)
 ggvenn_plot3 <- ggVennDiagram(
   my_list,
   label = "count"
@@ -325,7 +322,7 @@ scale_fill_gradient(low = "white", high = "dodgerblue") +
 theme(legend.position = "none", plot.title = element_text(hjust = 0.5, size = 14, face = "bold")) +
 ggtitle("CD4T")
 
-my_list <- list(CellDMC = celldmc_result$mono$mono_all, TCA = tca_result$mono$mono_all, HIRE = hire_v2_result$mono$mono_all, TOAST = toast_result$mono$mono_all, CeDAR = cedar_result$mono$mono_all)
+my_list <- list(CellDMC = celldmc_result$mono$mono_all, TCA = tca_result$mono$mono_all, HIRE = hire_result$mono$mono_all, TOAST = toast_result$mono$mono_all, CeDAR = cedar_result$mono$mono_all)
 ggvenn_plot4 <- ggVennDiagram(
   my_list,
   label = "count"
@@ -334,7 +331,7 @@ scale_fill_gradient(low = "white", high = "dodgerblue") +
 theme(legend.position = "none", plot.title = element_text(hjust = 0.5, size = 14, face = "bold")) +
 ggtitle("Mono")
 
-my_list <- list(CellDMC = celldmc_result$b$b_all, TCA = tca_result$b$b_all, HIRE = hire_v2_result$b$b_all, TOAST = toast_result$b$b_all, CeDAR = cedar_result$b$b_all)
+my_list <- list(CellDMC = celldmc_result$b$b_all, TCA = tca_result$b$b_all, HIRE = hire_result$b$b_all, TOAST = toast_result$b$b_all, CeDAR = cedar_result$b$b_all)
 ggvenn_plot5 <- ggVennDiagram(
   my_list,
   label = "count"
@@ -348,7 +345,7 @@ p1 <- ggarrange(ggvenn_plot1, ggvenn_plot2, ggvenn_plot3, ggvenn_plot4, ggvenn_p
 p1
 ```
 
-## Generate UpSet plot
+## Generate UpSet plot to compare the results
 ```r
 library(GGally)
 library(ggplot2)
@@ -360,7 +357,7 @@ library(ComplexHeatmap)
 library(grid)
 
 fdr1 <- 0.05
-my_list <- getList(celldmc_coe, tca_coe, hire_v2_coe, toast_coe, cedar_coe, FDR = fdr1)
+my_list <- getList(celldmc_coe, tca_coe, hire_coe, toast_coe, cedar_coe, FDR = fdr1)
 plot.all <- list()
 for(i in seq_along(my_list)){
     m1 <- make_comb_mat(my_list[[i]])
