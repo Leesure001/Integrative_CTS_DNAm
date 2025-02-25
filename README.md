@@ -368,3 +368,8 @@ pdf(paste0('sample_450k_UpSet.pdf'), width = 12, height = 8)
 print(ggarrange(plot.all[[1]], plot.all[[2]], plot.all[[3]], plot.all[[4]], plot.all[[5]], ncol = 3, nrow = 2, labels = LETTERS[1:5]))
 dev.off()
 ```
+
+## References
+If you use this pipeline, please cite:
+
+S. Li and P. Kuan (2025). A systematic evaluation of cell-type-specific differential methylation analysis in bulk tissue (manuscript under revision) and the corresponding cell type specific algorithms used.
