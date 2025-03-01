@@ -193,6 +193,7 @@ dmct_hire <- dmct.l_hire$dmct
 dmct_count_hire <- dmct.l_hire$dmct_count
 hire_result <- extract_cpgs(dmct.l_hire)
 ```
+**Note:** `HIRE` requires a large amount of memory for large sample sizes with full EPIC array (e.g., sample size over 200). Users should ensure they have sufficient memory when running `HIRE` in such cases.
 
 ## Integrative analysis with average p-value method
 ### Combine 5 methods: CellDMC, TCA, TOAST, CeDAR, HIRE
