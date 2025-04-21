@@ -373,4 +373,4 @@ dev.off()
 ## References
 If you use this pipeline, please cite:
 
-Shuo Li, Pei Fen Kuan, A systematic evaluation of cell-type-specific differential methylation analysis in bulk tissue, Briefings in Bioinformatics, Volume 26, Issue 2, March 2025, bbaf170, https://doi.org/10.1093/bib/bbaf170
+Shuo Li, Pei Fen Kuan, A systematic evaluation of cell-type-specific differential methylation analysis in bulk tissue, Briefings in Bioinformatics, Volume 26, Issue 2, March 2025, bbaf170, [https://doi.org/10.1093/bib/bbaf170](https://doi.org/10.1093/bib/bbaf170)
